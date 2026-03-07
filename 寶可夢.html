@@ -1,0 +1,235 @@
+<!DOCTYPE html>
+<html lang="zh">
+<head>
+  <meta charset="UTF-8">
+  <title>寶可夢抽鬼牌對戰版</title>
+  <style>
+    body {
+      font-family: Arial, sans-serif;
+      text-align: center;
+      margin-top: 40px;
+      background-color: #f0f8ff;
+    }
+    button {
+      padding: 10px 20px;
+      font-size: 18px;
+      margin: 10px;
+      cursor: pointer;
+    }
+    #log {
+      margin-top: 20px;
+      font-size: 16px;
+      text-align: left;
+      width: 60%;
+      margin-left: auto;
+      margin-right: auto;
+      background: #fff;
+      border: 1px solid #ccc;
+      padding: 10px;
+      height: 200px;
+      overflow-y: auto;
+    }
+    #scoreboard {
+      margin-top: 20px;
+      font-size: 18px;
+      font-weight: bold;
+      background: #fff;
+      border: 1px solid #ccc;
+      width: 40%;
+      margin-left: auto;
+      margin-right: auto;
+      padding: 10px;
+    }
+    #restartBtn {
+      display: none;
+      margin-top: 20px;
+      background-color: #4CAF50;
+      color: white;
+    }
+    #cardImage {
+      margin-top: 20px;
+      height: 200px;
+      transition: transform 0.6s;
+    }
+    .flip {
+      transform: rotateY(180deg);
+    }
+    .flash {
+      animation: flashAnim 0.6s;
+    }
+    @keyframes flashAnim {
+      0% { opacity: 0; }
+      50% { opacity: 1; }
+      100% { opacity: 0; }
+    }
+  </style>
+</head>
+<body>
+  <h1>🎴 寶可夢抽鬼牌對戰版 🎴</h1>
+  <p>選擇模式開始遊戲：</p>
+  <button onclick="startGame(1)">玩家 vs 1 電腦 (輕鬆模式)</button>
+  <button onclick="startGame(3)">玩家 vs 3 電腦 (緊張模式)</button>
+  <br><br>
+  <button id="drawBtn" onclick="playerDraw()" disabled>玩家抽牌</button>
+  <div id="log"></div>
+  <img id="cardImage" src="" alt="抽到的卡片">
+  <div id="scoreboard"></div>
+  <button id="restartBtn" onclick="restartGame()">再來一局</button>
+  <br><br>
+  <button onclick="toggleMusic()">🎵 播放/暫停音樂</button>
+
+  <!-- 背景音樂 -->
+  <audio id="bgMusicRelax" src="music/relax.mp3" loop></audio>
+  <audio id="bgMusicTense" src="music/tense.mp3" loop></audio>
+
+  <script>
+    let deck = [];
+    let players = [];
+    let currentPlayer = 0;
+    let gameOver = false;
+    let scores = { "玩家": 0 };
+    let lastMode = 1;
+
+    const cardImages = {
+      "皮卡丘": "images/pikachu.png",
+      "小火龍": "images/charmander.png",
+      "傑尼龜": "images/squirtle.png",
+      "妙蛙種子": "images/bulbasaur.png",
+      "胖丁": "images/jigglypuff.png",
+      "卡比獸": "images/snorlax.png",
+      "伊布": "images/eevee.png",
+      "鬼牌 👻": "images/ghost.png"
+    };
+
+    function startGame(numAI) {
+      lastMode = numAI;
+      deck = Object.keys(cardImages);
+      shuffle(deck);
+
+      players = ["玩家"];
+      for (let i = 1; i <= numAI; i++) {
+        players.push("電腦" + i);
+        if (!scores["電腦" + i]) scores["電腦" + i] = 0;
+      }
+
+      currentPlayer = 0;
+      gameOver = false;
+      document.getElementById("log").innerHTML = "遊戲開始！<br>";
+      document.getElementById("drawBtn").disabled = false;
+      document.getElementById("restartBtn").style.display = "none";
+      document.getElementById("cardImage").src = "";
+      updateScoreboard();
+
+      // 停止所有音樂
+      document.getElementById("bgMusicRelax").pause();
+      document.getElementById("bgMusicTense").pause();
+
+      // 播放對應模式音樂
+      if (numAI === 1) {
+        document.getElementById("bgMusicRelax").play();
+      } else {
+        document.getElementById("bgMusicTense").play();
+      }
+    }
+
+    function shuffle(array) {
+      for (let i = array.length - 1; i > 0; i--) {
+        const j = Math.floor(Math.random() * (i + 1));
+        [array[i], array[j]] = [array[j], array[i]];
+      }
+    }
+
+    function playerDraw() {
+      if (gameOver || currentPlayer !== 0) return;
+      drawCard(players[currentPlayer]);
+      if (!gameOver) {
+        currentPlayer = (currentPlayer + 1) % players.length;
+        setTimeout(aiTurn, 1000);
+      }
+    }
+
+    function aiTurn() {
+      if (gameOver || currentPlayer === 0) return;
+      drawCard(players[currentPlayer]);
+      if (!gameOver) {
+        currentPlayer = (currentPlayer + 1) % players.length;
+        if (currentPlayer === 0) {
+          log("輪到玩家抽牌！");
+        } else {
+          setTimeout(aiTurn, 1000);
+        }
+      }
+    }
+
+    function drawCard(player) {
+      if (deck.length === 0) {
+        log("牌堆空了，遊戲結束！");
+        gameOver = true;
+        document.getElementById("drawBtn").disabled = true;
+        document.getElementById("restartBtn").style.display = "inline-block";
+        return;
+      }
+
+      const card = deck.pop();
+      const cardImg = document.getElementById("cardImage");
+
+      cardImg.classList.add("flip");
+      setTimeout(() => {
+        cardImg.src = cardImages[card];
+        cardImg.classList.remove("flip");
+        if (card.includes("鬼牌")) {
+          cardImg.classList.add("flash");
+          setTimeout(() => cardImg.classList.remove("flash"), 600);
+        }
+      }, 600);
+
+      if (card.includes("鬼牌")) {
+        log(`${player} 抽到 ${card}！💀 ${player} 輸了！`);
+        gameOver = true;
+        document.getElementById("drawBtn").disabled = true;
+        document.getElementById("restartBtn").style.display = "inline-block";
+
+        players.forEach(p => {
+          if (p !== player) {
+            scores[p] += 1;
+          }
+        });
+        updateScoreboard();
+      } else {
+        log(`${player} 抽到 ${card}，安全～`);
+      }
+    }
+
+    function log(message) {
+      const logDiv = document.getElementById("log");
+      logDiv.innerHTML += message + "<br>";
+      logDiv.scrollTop = logDiv.scrollHeight;
+    }
+
+    function updateScoreboard() {
+      let html = "<h3>📊 排行榜</h3>";
+      const sorted = Object.entries(scores).sort((a, b) => b[1] - a[1]);
+      sorted.forEach(([player, score], index) => {
+        html += `${index + 1}. ${player}: ${score} 分<br>`;
+      });
+      document.getElementById("scoreboard").innerHTML = html;
+    }
+
+    function restartGame() {
+      startGame(lastMode);
+    }
+
+    function toggleMusic() {
+      const relax = document.getElementById("bgMusicRelax");
+      const tense = document.getElementById("bgMusicTense");
+
+      if (!relax.paused) {
+        relax.paused ? relax.play() : relax.pause();
+      }
+      if (!tense.paused) {
+        tense.paused ? tense.play() : tense.pause();
+      }
+    }
+  </script>
+</body>
+</html>
